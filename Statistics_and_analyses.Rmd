@@ -1,0 +1,923 @@
+---
+title: "Statistics and analyses"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(readr)
+library(curl)
+library(stringr)
+library(RColorBrewer)
+library(plyr)
+```
+
+# Count segments, worldwide and areally
+
+##Prepare the data:
+
+```{r}
+segbo_data <- read_csv("bsd_with_glottolog-with-features.csv", col_types = cols(BorrowedSound = col_character()))
+seg_table <- table(segbo_data$BorrowedSound)
+seg_table  <- seg_table[order(seg_table, decreasing=F)]
+df <- as.data.frame(seg_table)
+languoids <- read_csv("languoid.csv")
+
+# Download Glottolog 4.0 (22.10.2019) geo data
+glottolog_data <- read_csv("https://cdstar.shh.mpg.de/bitstreams/EAEA0-5787-1678-EBFE-0/languages_and_dialects_geo.csv")
+
+# Download PHOIBLE 2.0 data
+temp <- tempfile()
+download.file("https://github.com/phoible/dev/archive/v2.0.zip",temp)
+phoible_data <- read_csv(unz(temp, "dev-2.0/data/phoible.csv"), col_types = cols(SpecificDialect = col_character()))
+unlink(temp)
+```
+
+##Make worlwide plots:
+```{r}
+seg_lang_sum <- nrow(unique(subset(segbo_data,select=c(InventoryID)))) # Count number of SegBo doculects
+
+cairo_pdf(filename = paste("world_segments.pdf",sep=""),  height=23/148*nrow(df), onefile = FALSE)
+p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(df$Freq)*1.1) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+worldwide_top <- subset(df, Freq > 2)
+cairo_pdf(filename = paste("world_segments_top.pdf",sep=""),  height=23/148*nrow(worldwide_top), onefile = FALSE)
+p <- ggplot(worldwide_top, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) + 
+  ylim(0, 11*(max(worldwide_top$Freq)/10)) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+```
+
+
+##Make areal plots:
+```{r}
+for (area in (unique(segbo_data$macroarea))){
+  if (!is.na(area)) {
+    area_seg <- subset(segbo_data, macroarea == area, select=c(BorrowedSound))
+    area_seg_table <- table(area_seg$BorrowedSound)
+    area_seg_table  <- area_seg_table[order(area_seg_table, decreasing=F)]
+    df <- as.data.frame(area_seg_table)
+    area_seg_lang_sum <- nrow(unique(subset(segbo_data, macroarea == area,select=c(InventoryID)))) # Count number of SegBo doculects in the macroarea
+    
+    
+    cairo_pdf(filename = paste("areal_segments_",gsub(" ", "_", area), ".pdf",sep=""),  height=23/148*nrow(df), onefile = FALSE)
+    df2 <- aggregate(Freq ~ Var1, df, sum)
+    p <- ggplot(df2, aes(x=Var1, y=Freq)) +
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      ylim(0, 11*(max(df2$Freq)/10)) +
+      coord_flip() +
+      # ggtitle(area) +
+      xlab("Segment") + ylab("Counts")+
+      geom_text(aes(label=paste(Freq," (",round(Freq/area_seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+    print(p)
+    
+    dev.off()
+    p
+  }
+}
+area = "Eurasia"
+area_seg <- subset(segbo_data, macroarea == area, select=c(BorrowedSound))
+area_seg_table <- table(area_seg$BorrowedSound)
+area_seg_table  <- area_seg_table[order(area_seg_table, decreasing=F)]
+df <- as.data.frame(area_seg_table)
+area_seg_lang_sum <- nrow(unique(subset(segbo_data, macroarea == area,select=c(InventoryID)))) # Count number of SegBo doculects in the macroarea
+
+eurasia_top1 <- subset(df, Freq > 1)
+eurasia_top2 <- subset(df, Freq == 1)
+eurasia_once_string <- toString(eurasia_top2$Var1)
+
+
+cairo_pdf(filename = paste("areal_segments_",area, "1.pdf",sep=""),  height=23/148*nrow(eurasia_top1), onefile = FALSE)
+p <- ggplot(eurasia_top1, aes(x=Var1, y=Freq)) +
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, 11*(max(eurasia_top1$Freq)/10)) +
+  coord_flip() +
+  # ggtitle(area) +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/area_seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+cairo_pdf(filename = paste("areal_segments_",area, "2.pdf",sep=""),  height=23/148*nrow(eurasia_top2), onefile = FALSE)
+p <- ggplot(eurasia_top2, aes(x=Var1, y=Freq)) +
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, 11*(max(eurasia_top2$Freq)/10)) +
+  coord_flip() +
+  # ggtitle(area) +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/area_seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)+ ylim(0, 60)
+print(p)
+dev.off()
+p
+
+area = "Africa"
+area_seg <- subset(segbo_data, macroarea == area, select=c(BorrowedSound))
+area_seg_table <- table(area_seg$BorrowedSound)
+area_seg_table  <- area_seg_table[order(area_seg_table, decreasing=F)]
+df <- as.data.frame(area_seg_table)
+area_seg_lang_sum <- nrow(unique(subset(segbo_data, macroarea == area,select=c(InventoryID)))) # Count number of SegBo doculects in the macroarea
+
+africa_top1 <- subset(df, Freq > 1)
+africa_top2 <- subset(df, Freq == 1)
+africa_once_string <- toString(africa_top2$Var1)
+
+cairo_pdf(filename = paste("areal_segments_",area, "1.pdf",sep=""),  height=23/148*nrow(africa_top1), onefile = FALSE)
+p <- ggplot(africa_top1, aes(x=Var1, y=Freq)) +
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, 11*(max(africa_top1$Freq)/10)) +
+  coord_flip() +
+  # ggtitle(area) +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/area_seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+cairo_pdf(filename = paste("areal_segments_",area, "2.pdf",sep=""),  height=23/148*nrow(africa_top2), onefile = FALSE)
+p <- ggplot(africa_top2, aes(x=Var1, y=Freq)) +
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, 11*(max(africa_top2$Freq)/10)) +
+  coord_flip() +
+  # ggtitle(area) +
+  xlab("Segment") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/area_seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)+ ylim(0, 15)
+print(p)
+dev.off()
+p
+
+```
+
+
+# Plot histogram of number of borrowed segments in languages
+```{r}
+lang_table <- table(segbo_data$InventoryID)
+lang_table  <- lang_table[order(lang_table, decreasing=F)]
+df <- as.data.frame(lang_table)
+df <- merge(x = df, y = unique(segbo_data[,c("InventoryID","name")]), by.x = "Var1",by.y = "InventoryID", all.x = TRUE)
+df <- df[order(df$Freq, decreasing=T),]
+borrowing_sum <- nrow(segbo_data) # Count number of SegBo rows
+
+df_hist <- as.data.frame(table(df$Freq))
+cairo_pdf(filename = paste("world_lang_hist.pdf",sep=""),  height=40/148*nrow(df_hist), onefile = FALSE)
+p <- ggplot(df_hist, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  xlab("Number of borrowed segments") + ylab("Number of languages")+
+  geom_text(aes(label=Freq), vjust=-0.5, size=3)
+print(p)
+dev.off()
+p
+```
+
+# Make borrower plots (and print average and median number of borrowed segments in each macroarea):
+```{r}
+cairo_pdf(filename = paste("world_langs.pdf",sep=""),  height=23/148*nrow(df), onefile = FALSE)
+# p <- ggplot(df, aes(x=reorder(Var1,Freq), y=Freq)) + 
+p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("") +
+  ylab("Number of borrowed segments")+
+  geom_text(aes(label=Freq), vjust=0.5, hjust=-0.1, size=3) +
+  scale_x_discrete(labels=rev(df$name))
+# ylim(0, max(df$Freq)*1.1) +
+# geom_text(aes(label=paste(Freq," (",round(Freq/borrowing_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+df2 <- subset(df, Freq > 6)
+
+cairo_pdf(filename = paste("world_langs_half.pdf",sep=""),  height=23/148*nrow(df2), onefile = FALSE)
+p <- ggplot(df2, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("") +
+  ylab("Number of borrowed segments")+
+  geom_text(aes(label=Freq), vjust=0.5, hjust=-0.5, size=3)+
+  scale_x_discrete(labels=rev(df2$name))
+# ylim(0, max(df$Freq)*1.1) +
+# geom_text(aes(label=paste(Freq," (",round(Freq/borrowing_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+area_seg_mean <- list()
+
+for (area in (unique(segbo_data$macroarea))){
+  if (!is.na(area)) {
+    area_lang <- subset(segbo_data, macroarea == area, select=c(name,InventoryID))
+    area_lang_table <- table(area_lang$InventoryID)
+    area_lang_table  <- area_lang_table[order(area_lang_table, decreasing=F)]
+    df <- as.data.frame(area_lang_table)
+    df <- merge(x = df, y = unique(segbo_data[,c("InventoryID","name")]), by.x = "Var1",by.y = "InventoryID", all.x = TRUE)
+    df <- df[order(df$Freq, decreasing=T),]
+    cairo_pdf(filename = paste("areal_langs_",gsub(" ", "_", area), ".pdf",sep=""),  height=23/148*nrow(df), onefile = FALSE)
+    p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      coord_flip() + 
+      # ggtitle(area) +
+      xlab("") +
+      ylab("Number of borrowed segments")+
+      geom_text(aes(label=Freq), vjust=0.5, hjust=-0.5, size=3)+
+      scale_x_discrete(labels=rev(df$name))
+    print(p)
+    dev.off()
+    p
+    
+     # average number of borrowed segments in macroarea
+    print(paste(area,"-",round(mean(area_lang_table),2)," - ",round(median(area_lang_table),2)))
+    
+    Freq_limit <- list(Eurasia = 5, Papunesia = 5, Africa = 4, "North America" = 4, "South America" = 4 , "Australia" = 3)
+    df2 <- subset(df, Freq > Freq_limit[[area]])
+    df2 <- df2[order(df2$Freq, decreasing=T),]
+    
+    cairo_pdf(filename = paste("areal_langs_",gsub(" ", "_", area), "_half.pdf",sep=""),  height=1+0.153*nrow(df2), onefile = FALSE)
+    p <- ggplot(df2, aes(x=Var1, y=Freq)) + 
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      coord_flip() + 
+      # ggtitle(area) +
+      xlab("") +
+      ylab("Number of borrowed segments")+
+      geom_text(aes(label=Freq), vjust=0.5, hjust=-0.1, size=3)+
+      scale_x_discrete(labels=rev(df2$name))
+    print(p)
+    dev.off()
+    p
+    }
+}
+
+```
+
+
+# Make worldwide donor plots:
+```{r}
+source_lang_cor <- cbind(segbo_data)
+source_lang_cor$SourceLanguageGlottocode <- gsub('\\s+', '', source_lang_cor$SourceLanguageGlottocode)
+source_lang_cor$SourceLanguageGlottocode <- gsub('arab1395', 'stan1318', source_lang_cor$SourceLanguageGlottocode)
+source_lang_cor$SourceLanguageGlottocode <- gsub('macr1272', 'port1283', source_lang_cor$SourceLanguageGlottocode)
+source_lang_cor$SourceLanguageGlottocode <- gsub('nort3191', 'alge1239', source_lang_cor$SourceLanguageGlottocode)
+source_lang_cor$SourceLanguageGlottocode[is.na(source_lang_cor$SourceLanguageGlottocode)] <- "unknown"
+
+source_lang_glts <- unique(unlist(strsplit(as.character(source_lang_cor$SourceLanguageGlottocode), ",")))
+# source_lang_glts <- source_lang_glts[!is.na(source_lang_glts) & source_lang_glts != "unknown"]
+
+source_langs <- data.frame(glottocode=as.character(cbind(source_lang_glts)), stringsAsFactors=FALSE)
+source_langs$count <- rep(0,nrow(source_langs))
+for (row in 1:nrow(source_langs)) {
+  source_langs$count[row] <- sum(str_count(source_lang_cor$SourceLanguageGlottocode,source_langs$glottocode[row]), na.rm=T)
+}
+
+source_langs <- merge(source_langs,languoids[,c("name","id")],by.x = "glottocode",by.y = "id",all.x=TRUE)
+source_langs$name[source_langs$glottocode=="unknown"] <- "Unknown"
+source_langs  <- source_langs[order(source_langs$count, decreasing=T),]
+
+borrowing_sum <- nrow(segbo_data) # Count number of SegBo rows
+
+cairo_pdf(filename = paste("world_source_langs.pdf",sep=""),  height=max(2,23/148*nrow(source_langs)), onefile = FALSE)
+p <- ggplot(source_langs, aes(x=reorder(name,count), y=count)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("Source language") + ylab("Number of borrowed segments")+
+  # geom_text(aes(label=count), vjust=0.5, hjust=-0.1, size=3)
+  ylim(0, max(source_langs$count)*1.15) +
+  geom_text(aes(label=paste(count," (",round(count/borrowing_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+
+df <- subset(source_langs,count>9)
+cairo_pdf(filename = paste("world_source_langs_half.pdf",sep=""),  height=23/148*nrow(df), onefile = FALSE)
+p <- ggplot(df, aes(x=reorder(name,count), y=count)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("Source language") + ylab("Number of borrowed segments")+
+  # geom_text(aes(label=count), vjust=0.5, hjust=-0.1, size=3)
+  ylim(0, max(df$count)*1.15) +
+  geom_text(aes(label=paste(count," (",round(count/borrowing_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+sum(source_langs[2:6,]$count) # big-five impact
+sum(source_langs[7:nrow(source_langs),]$count) # other languages' impact
+
+```
+
+# Areal donor plots:
+```{r}
+for (area in (unique(segbo_data$macroarea))){
+  if (!is.na(area)) {
+    source_lang_cor_area <- subset(source_lang_cor, macroarea == area)
+    source_lang_glts <- unique(unlist(strsplit(as.character(source_lang_cor_area$SourceLanguageGlottocode), ",")))
+    # source_lang_glts <- source_lang_glts[!is.na(source_lang_glts) & source_lang_glts != "unknown"]
+    
+    source_langs <- data.frame(glottocode=as.character(cbind(source_lang_glts)), stringsAsFactors=FALSE)
+    source_langs$count <- rep(0,nrow(source_langs))
+    for (row in 1:nrow(source_langs)) {
+      source_langs$count[row] <- sum(str_count(source_lang_cor_area$SourceLanguageGlottocode,source_langs$glottocode[row]), na.rm=T)
+    }
+    
+    source_langs <- merge(source_langs,languoids[,c("name","id")],by.x = "glottocode",by.y = "id",all.x=TRUE)
+    source_langs$name[source_langs$glottocode=="unknown"] <- "Unknown"
+    source_langs  <- source_langs[order(source_langs$count, decreasing=T),]
+    
+    borrowing_sum_area <- nrow(source_lang_cor_area) # Count number of SegBo rows
+    
+    cairo_pdf(filename = paste("areal_source_langs_",gsub(" ", "_", area),".pdf",sep=""),  height=max(23/148*nrow(source_langs),2), onefile = FALSE)
+    p <- ggplot(source_langs, aes(x=reorder(name,count), y=count)) + 
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      coord_flip() + 
+      # ggtitle(area) +
+      xlab("Source language") + ylab("Number of donated segments")+
+      # geom_text(aes(label=count), vjust=0.5, hjust=-0.1, size=3)
+      ylim(0, max(source_langs$count)*1.13) +
+      geom_text(aes(label=paste(count," (",round(count/borrowing_sum_area*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+    print(p)
+    dev.off()
+    p
+    
+  }
+}
+
+```
+
+# Plot of result of borrowing events:
+```{r}
+result_table <- table(segbo_data$Result)
+result_table  <- result_table[order(result_table, decreasing=F)]
+df <- as.data.frame(result_table)
+seg_sum <- nrow(segbo_data) # Count number of SegBo doculects
+
+cairo_pdf(filename = paste("world_result.pdf",sep=""),  height=2, onefile = FALSE)
+p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(df$Freq)*1.12) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("Result") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/seg_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+for (area in (unique(segbo_data$macroarea))){
+  if (!is.na(area)) {
+    area_result <- subset(segbo_data, macroarea == area, select=c(Result))
+    result_table <- table(area_result$Result)
+    result_table  <- result_table[order(result_table, decreasing=F)]
+    df <- as.data.frame(result_table)
+    seg_sum <- nrow(area_result) # Count number of SegBo doculects
+    
+    cairo_pdf(filename = paste("areal_result_",gsub(" ", "_", area),".pdf",sep=""),  height=max(23/148*nrow(source_langs),2), onefile = FALSE)
+    p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      ylim(0, max(df$Freq)*1.12) +
+      coord_flip() + 
+      # ggtitle(area) +
+      xlab("Result") + ylab("Counts")+
+      geom_text(aes(label=paste(Freq," (",round(Freq/seg_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+    print(p)
+    dev.off()
+    p
+  }
+}
+```
+
+# New distinction plots
+```{r}
+dist_table <- table(segbo_data$NewDistinction)
+dist_table  <- dist_table[order(dist_table, decreasing=F)]
+df <- as.data.frame(dist_table)
+seg_sum <- nrow(segbo_data) # Count number of SegBo doculects
+
+cairo_pdf(filename = paste("world_dist.pdf",sep=""),  height=max(23/148*nrow(dist_table),2), onefile = FALSE)
+p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(df$Freq)*1.12) +
+  coord_flip() + 
+  # ggtitle('Worldwide') +
+  xlab("New Distinction") + ylab("Counts")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/seg_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+for (area in (unique(segbo_data$macroarea))){
+  if (!is.na(area)) {
+    area_dist <- subset(segbo_data, macroarea == area, select=c(NewDistinction))
+    dist_table <- table(area_dist$NewDistinction)
+    dist_table  <- dist_table[order(dist_table, decreasing=F)]
+    df <- as.data.frame(dist_table)
+    seg_sum <- nrow(area_dist) # Count number of SegBo doculects
+    
+    cairo_pdf(filename = paste("areal_dist_",gsub(" ", "_", area),".pdf",sep=""),  height=max(23/148*nrow(dist_table),2), onefile = FALSE)
+    p <- ggplot(df, aes(x=Var1, y=Freq)) + 
+      geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+      ylim(0, max(df$Freq)*1.12) +
+      coord_flip() + 
+      # ggtitle(area) +
+      xlab("New Distinction") + ylab("Counts")+
+      geom_text(aes(label=paste(Freq," (",round(Freq/seg_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+    print(p)
+    dev.off()
+    p
+  }
+}
+```
+
+# SegBo coverage in macroareas, compared with Glottolog:
+```{r}
+seg_coverage_df <- unique(segbo_data[c("InventoryID","macroarea")])
+seg_coverage_table <- table(seg_coverage_df$macroarea)
+glt_coverage_table <- table(glottolog_data[glottolog_data$level=="language",]$macroarea)
+# Produce coverage stats:
+"SegBo coverage:"
+100*seg_coverage_table/(sum(seg_coverage_table))
+"Glottolog coverage:"
+100*glt_coverage_table/(sum(glt_coverage_table))
+```
+
+# Check inter-areal borrowing:
+```{r}
+same_macro <- 0
+diff_macro <- 0
+check_list <- list()
+
+for (i in 1:nrow(source_lang_cor)){
+  s_langs <- unlist(strsplit(as.character(source_lang_cor[i,]$SourceLanguageGlottocode), ","))
+  if (source_lang_cor[i,]$SourceLanguageGlottocode!="unknown"){
+    for (s_lang in s_langs){
+      if (!identical(character(0),glottolog_data[glottolog_data$glottocode==s_lang,]$macroarea)){
+        if ((glottolog_data[glottolog_data$glottocode==s_lang,]$macroarea==source_lang_cor[i,]$macroarea) & (!is.na(source_lang_cor[i,]$macroarea)) ){
+          same_macro <- same_macro + 1
+        } else {
+          diff_macro <- diff_macro + 1
+        }
+      } else {
+        check_list <- c(check_list,s_lang)
+      }
+    }
+  }
+}
+
+same_macro
+diff_macro
+```
+
+# Calculate areal and worldwide frequencies of PHOIBLE segments
+```{r}
+ph_seglist <- unique(phoible_data$Phoneme)
+ph_seglist <- ph_seglist[!is.na(ph_seglist)]
+
+freq_ph_df <- data.frame("Segment" = ph_seglist, stringsAsFactors=FALSE)
+
+row.names(freq_ph_df) <- freq_ph_df$Segment
+
+freq_ph_df <- freq_ph_df[-1]
+
+areas <- list("Africa", "Australia", "Eurasia", "North America", "Papunesia", "South America")
+
+phoible_with_macroarea <- merge(x=phoible_data, y=glottolog_data, by.x="Glottocode", by.y="glottocode", all.x=TRUE)
+
+for (area in areas) {
+  freq_ph_df[area] <- c(integer(nrow(freq_ph_df)))
+  area_sub <- subset(phoible_with_macroarea, macroarea == area, select=c(Phoneme))
+  counter <- as.data.frame(table(area_sub))
+  lang_sum <- nrow(unique(subset(phoible_with_macroarea, macroarea == area, select=c(InventoryID))))
+  counter$Freq <- counter$Freq/lang_sum
+  row.names(counter) <- counter$area_sub
+  # counter <- counter[ ,freq, drop=FALSE]
+  for (seg in rownames(counter)){
+    freq_ph_df[seg, area] <- counter[seg, 'Freq']
+  }
+}
+
+freq_ph_df['Worldwide'] <- c(integer(nrow(freq_ph_df)))
+area_sub <- subset(phoible_with_macroarea, select=c(Phoneme))
+counter <- as.data.frame(table(area_sub))
+counter <- counter[!is.na(counter$area_sub),]
+lang_sum <- nrow(unique(subset(phoible_with_macroarea, select=c(InventoryID))))
+counter$Freq <- counter$Freq/lang_sum
+row.names(counter) <- counter$area_sub
+# counter <- counter[ ,freq, drop=FALSE]
+for (seg in rownames(counter)){
+  freq_ph_df[seg, 'Worldwide'] <- counter[seg, 'Freq']
+}
+```
+
+
+# Calculate areal and worldwide frequencies of SegBo segments
+```{r}
+segbo_seglist <- unique(segbo_data$BorrowedSound)
+
+freq_segbo_df <- data.frame("Segment" = segbo_seglist, stringsAsFactors=FALSE)
+
+row.names(freq_segbo_df) <- freq_segbo_df$Segment
+
+freq_segbo_df <- freq_segbo_df[-1]
+
+for (area in areas) {
+  freq_segbo_df[area] <- c(integer(nrow(freq_segbo_df)))
+  area_sub <- subset(segbo_data, macroarea == area, select=c(BorrowedSound))
+  counter <- as.data.frame(table(area_sub))
+  counter <- counter[!is.na(counter$area_sub),]
+  lang_sum <- nrow(unique(subset(segbo_data, macroarea == area, select=c(InventoryID))))
+  counter$Freq <- counter$Freq/lang_sum
+  row.names(counter) <- counter$area_sub
+  for (seg in rownames(counter)){
+    freq_segbo_df[seg, area] <- counter[seg, 'Freq']
+  }
+}
+
+freq_segbo_df['Worldwide'] <- c(integer(nrow(freq_segbo_df)))
+area_sub <- subset(segbo_data, select=c(BorrowedSound))
+counter <- as.data.frame(table(area_sub))
+counter <- counter[!is.na(counter$area_sub),]
+lang_sum <- nrow(unique(subset(segbo_data, select=c(InventoryID))))
+counter$Freq <- counter$Freq/lang_sum
+row.names(counter) <- counter$area_sub
+for (seg in rownames(counter)){
+  freq_segbo_df[seg, 'Worldwide'] <- counter[seg, 'Freq']
+}
+```
+
+# Plot SegBo frequency vs. PHOIBLE frequency
+```{r}
+for (area in c('Worldwide',areas)) {
+  cairo_pdf(paste("freq_scatter_",gsub(" ", "_", area), ".pdf",sep=""),height = 4)
+  area_df <- data.frame("Segment" = segbo_seglist, stringsAsFactors=FALSE)
+  row.names(area_df) <- area_df$Segment
+  area_df <- area_df[-1]
+  area_df['SegBo'] <- c(integer(nrow(area_df)))
+  area_df[,'SegBo'] <- freq_segbo_df[,area]
+  area_df[segbo_seglist,'PHOIBLE'] <- freq_ph_df[segbo_seglist,area]
+  area_df[is.na(area_df[segbo_seglist,'PHOIBLE']),'PHOIBLE'] <- 0
+  area_df <- subset(area_df, SegBo > 0)
+  
+  if (area == "Worldwide")  {
+    x_title <- "Typological frequency"
+    y_title <- "Frequency of borrowing"
+  } else {
+    x_title <- "Areal frequency"
+    y_title <- "Areal frequency of borrowing"
+  }
+  
+  p <- ggplot(area_df, aes(x=PHOIBLE, y=SegBo)) + #geom_point() + 
+    # ggtitle(paste('Borrowing frequency vs. typological frequency:',area)) + 
+    xlab(x_title) + ylab(y_title)+ 
+    geom_text(label=rownames(area_df))+ xlim(0, 1)+ ylim(0, 0.5)
+  
+  print(p)
+  dev.off()
+  p
+}
+```
+
+
+# Make plots with average lines
+```{r}
+for (area in c('Worldwide',areas)) {
+  area_df <- data.frame("Segment" = segbo_seglist, stringsAsFactors=FALSE)
+  row.names(area_df) <- area_df$Segment
+  area_df <- area_df[-1]
+  area_df['SegBo'] <- c(integer(nrow(area_df)))
+  area_df[,'SegBo'] <- freq_segbo_df[,area]
+  area_df[segbo_seglist,'PHOIBLE'] <- freq_ph_df[segbo_seglist,area]
+  area_df[is.na(area_df[segbo_seglist,'PHOIBLE']),'PHOIBLE'] <- 0
+  area_df <- subset(area_df, SegBo > 0)
+  
+  for (i in 1:nrow(area_df)) {
+    if (area_df[i,"PHOIBLE"]>0.8) {
+      area_df[i,"group"] <- "5"
+    } else if (area_df[i,"PHOIBLE"]>0.6){
+      area_df[i,"group"] <- "4"
+    } else if (area_df[i,"PHOIBLE"]>0.4){
+      area_df[i,"group"] <- "3"
+    } else if (area_df[i,"PHOIBLE"]>0.2){
+      area_df[i,"group"] <- "2"
+    } else {
+      area_df[i,"group"] <- "1"
+    }
+  }
+  
+  area_df.summary <- aggregate(. ~ group, mean, data=area_df)
+  
+  if (area == "Worldwide")  {
+    x_title <- "Typological frequency"
+    y_title <- "Frequency of borrowing"
+  } else {
+    x_title <- "Areal frequency"
+    y_title <- "Areal frequency of borrowing"
+  }
+  
+  
+  cairo_pdf(paste("freq_scatter_w_lines_",gsub(" ", "_", area),".pdf",sep=""),height = 4)
+  p <- ggplot(area_df, aes(x=PHOIBLE, y=SegBo, color = group)) + #geom_point() + 
+    # ggtitle(paste('Borrowing frequency vs. typological frequency:',area)) + 
+    xlab(x_title) + ylab(y_title)+ 
+    geom_text(label=rownames(area_df))+ xlim(0, 1)+ ylim(0, 0.5) +
+    geom_crossbar(data=area_df.summary, aes(ymin = SegBo, ymax = SegBo, x=(as.integer(group)*0.2)-0.1 ),
+                  size=1,col=brewer.pal(n=8,name = "Dark2")[2:(length( unique(area_df$group) ) + 1)], width = .195) +
+    theme(legend.position = "none") +
+    scale_color_manual(values=brewer.pal(n=8,name = "Dark2")[2:(length( unique(area_df$group) ) + 1)])
+  print(p)
+  dev.off()
+  p
+}
+```
+
+
+# calculate borrowability factors
+```{r}
+bs_df <- data.frame("Segment" = segbo_seglist, stringsAsFactors=FALSE)
+row.names(bs_df) <- bs_df$Segment
+bs_df <- bs_df[-1]
+bs_df['SegBo'] <- c(integer(nrow(bs_df)))
+bs_df[,'SegBo'] <- freq_segbo_df[,'Worldwide']
+bs_df[segbo_seglist,'PHOIBLE'] <- freq_ph_df[segbo_seglist,'Worldwide']
+bs_df[is.na(bs_df[segbo_seglist,'PHOIBLE']),'PHOIBLE'] <- 0
+bs_df <- subset(bs_df, SegBo > 0)
+
+bs_df['b_S'] <- bs_df['SegBo']/(bs_df['PHOIBLE']-bs_df['PHOIBLE']^2)
+bs_df <- subset(bs_df, PHOIBLE>0.005)
+bs_df <- bs_df[order(bs_df$b_S,decreasing=F),]
+
+bs_df1 <- bs_df
+
+cairo_pdf(filename = paste("bs_plot_full",".pdf",sep=""),  height=max(23/148*nrow(bs_df1),2), onefile = FALSE)
+p <- ggplot(bs_df1, aes(x=reorder(rownames(bs_df1),b_S), y=b_S)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(bs_df$b_S)*1.03) +
+  coord_flip() + 
+  xlab("Segment") + ylab("Borrowbility factor")+
+  geom_text(aes(label=round(bs_df1$b_S,3)), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+lim1 <-  bs_df[2*round(nrow(bs_df)/3),"b_S"] # divide the long plot to three page-fitting ones
+lim2 <-  bs_df[round(nrow(bs_df)/3),"b_S"]
+
+bs_df1 <- subset(bs_df, b_S>=lim1)
+
+cairo_pdf(filename = paste("bs_plot_most",".pdf",sep=""),  height=max(23/148*nrow(bs_df1),2), onefile = FALSE)
+p <- ggplot(bs_df1, aes(x=reorder(rownames(bs_df1),b_S), y=b_S)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(bs_df$b_S)*1.03) +
+  coord_flip() + 
+  xlab("Segment") + ylab("Borrowbility factor")+
+  geom_text(aes(label=round(bs_df1$b_S,3)), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+
+bs_df1 <- subset(bs_df, (b_S<lim1) & (b_S>lim2))
+
+cairo_pdf(filename = paste("bs_plot_mid",".pdf",sep=""),  height=max(23/148*nrow(bs_df1),2), onefile = FALSE)
+p <- ggplot(bs_df1, aes(x=reorder(rownames(bs_df1),b_S), y=b_S)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(bs_df$b_S)*1.03) +
+  coord_flip() + 
+  xlab("Segment") + ylab("Borrowbility factor")+
+  geom_text(aes(label=round(bs_df1$b_S,3)), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+  
+bs_df1 <- subset(bs_df, b_S<=lim2)
+
+cairo_pdf(filename = paste("bs_plot_least",".pdf",sep=""),  height=max(23/148*nrow(bs_df1),2), onefile = FALSE)
+p <- ggplot(bs_df1, aes(x=reorder(rownames(bs_df1),b_S), y=b_S)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(bs_df$b_S)*1.03) +
+  coord_flip() + 
+  xlab("Segment") + ylab("Borrowbility factor")+
+  geom_text(aes(label=round(bs_df1$b_S,3)), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+```
+
+# Compare borrowability factors by feature:
+```{r}
+bs_df$segment <- rownames(bs_df)
+features <- colnames(phoible_data)
+features <- features[14:length(features)]
+
+bs_w_features <- merge(x = bs_df, y = unique(phoible_data[,c("Phoneme",features)]), by.x = "segment", by.y = "Phoneme", all.x = TRUE)
+rownames(bs_w_features) <- bs_w_features$segment
+
+for (feat in features){
+  for(value in unique(bs_w_features[,feat])){
+    vec=bs_w_features[,feat]==value
+    print(paste("Feature: ", feat,", value: ",value,", mean b_S: ",round(mean(bs_w_features[vec,]$b_S),3),sep=""))
+  }
+}
+
+print(paste("vowels:",round(mean(subset(bs_w_features,((syllabic=="+")&(consonantal=="-")) )[,"b_S"]),3)))
+
+print(paste("nasalized vowels:",round(mean(subset(bs_w_features,((syllabic=="+") & (consonantal=="-")) & (nasal=="+"))[,"b_S"]),3)))
+
+print(paste("plain vowels:",round(mean(subset(bs_w_features,((syllabic=="+") & (consonantal=="-")) & (nasal=="-"))[,"b_S"]),3)))
+
+print(paste("consonants:",round(mean(subset(bs_w_features,!((syllabic=="+")&(consonantal=="-")) )[,"b_S"]),3)))
+
+print(paste("voiced consonants:",round(mean(subset(bs_w_features,!((syllabic=="+")&(consonantal=="-")) & (periodicGlottalSource=="+") )[,"b_S"]),3)))
+
+print(paste("voiceless consonants:",round(mean(subset(bs_w_features,!((syllabic=="+")&(consonantal=="-")) & (periodicGlottalSource=="-") )[,"b_S"]),3)))
+
+print(paste("liquids:",round(mean(subset(bs_w_features,((approximant=="+")&(consonantal=="+")) )[,"b_S"]),3)))
+
+print(paste("nasals:",round(mean(subset(bs_w_features,((sonorant=="+")&(approximant=="-")) )[,"b_S"]),3)))
+
+print(paste("fricatives:",round(mean(subset(bs_w_features,((continuant=="+")&(sonorant=="-")) )[,"b_S"]),3)))
+
+print(paste("affricates:",round(mean(subset(bs_w_features,((delayedRelease=="+")&(continuant=="-")) )[,"b_S"]),3)))
+
+print(paste("stops:",round(mean(subset(bs_w_features,((delayedRelease=="-")) )[,"b_S"]),3)))
+
+print(paste("trills:",round(mean(subset(bs_w_features,((trill=="+")) )[,"b_S"]),3)))
+
+print(paste("labiodentals:",round(mean(subset(bs_w_features,((labiodental=="+")) )[,"b_S"]),3)))
+
+print(paste("laterals:",round(mean(subset(bs_w_features,((lateral=="+")) )[,"b_S"]),3)))
+
+print(paste("dorsals:",round(mean(subset(bs_w_features,((dorsal=="+")) )[,"b_S"]),3)))
+
+print(paste("coronals:",round(mean(subset(bs_w_features,((coronal=="+")) )[,"b_S"]),3)))
+```
+
+The following code might not run as an R script using RStudio on Windows.
+One should run it using the console: Select all lines (Ctrl+A) and run selected (Ctrl+Enter)
+This is a known issue in RStudio. See RStudio support:
+"On Windows, R's source function does not work with files that include characters that aren't part of the current system encoding. You may have trouble with RStudio's Run All and Source on Save commands, as they rely on source." (https://support.rstudio.com/hc/en-us/articles/200532197-Character-Encoding)
+
+# Rhotic study
+
+## Define rhotics (r-like glyph, optinally with diacritics)
+```{r}
+rho_base <- "[rɾɹɽʀʁɻ]"
+diacritics <- "[ʼ̥̬ʰ̹̜͈ ͓ ̟̠̩̯̈̽˞̤̰̼ʷʲˠˤ̴̝̞̘̙̪̺̻̃ⁿˡ̚ˀʱᶣ̊ ːˑ|]" # the character "|" in PHOIBLE indicates under-specified phonemes
+
+
+
+
+```
+
+## Find PHOIBLE segments that are rhotic
+```{r}
+is_rho_regexp <- paste("^(",diacritics, "*",rho_base, diacritics,"*",")+$",sep="")
+ph_is_rho_bool <- grepl(is_rho_regexp, phoible_data$Phoneme)
+ph_is_rho <- phoible_data[ph_is_rho_bool,]
+phoible_data$is_rhotic <- ph_is_rho_bool # Add rhotic column to phoible data
+```
+
+## PHOIBLE rhotics
+```{r}
+ph_rho_counter <- count(phoible_data, c("InventoryID", "is_rhotic")) # Count rhotics and non-rhotics in doculects
+
+ph_lang_sum <- nrow(unique(subset(phoible_data,select=c(InventoryID)))) # Count number of PHOIBLE doculects
+ph_lang_rho_count <- count(ph_rho_counter$freq[ph_rho_counter$is_rhotic]) #  Histogram of doculects by number of rhotic segments they have (only languages with rhotics) 
+ph_lang_rho_sum <- sum(ph_lang_rho_count$freq) # How many doculects have at least one rhotic
+ph_hist_rho <- rbind(data.frame(x = 0, freq = ph_lang_sum-ph_lang_rho_sum), ph_lang_rho_count) # Add number of doculects without rhotics
+ph_hist_rho$percent <- ph_hist_rho$freq/ph_lang_sum*100
+
+cairo_pdf(filename = "rho_hist.pdf",  height=35/148*nrow(ph_hist_rho), onefile = FALSE)
+p <- ggplot(ph_hist_rho, aes(x=reorder(x,-x), y=freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) + 
+  ylim(0, 11.5*ceiling(max(ph_hist_rho$freq)/10)) +
+  coord_flip() + 
+  # ggtitle(paste(toString(nrow(ph_rhotics_to_plot)),'most frequent rhotic segments in PHOIBLE')) + 
+  xlab("Number of rhotics") + ylab("Languages")+
+  geom_text(aes(label=paste(freq," (",round(ph_hist_rho$percent,digits = 2),"%)",sep = "")), vjust=0.5, hjust=-0.17, size=3)
+print(p)
+dev.off()
+p
+
+ph_rhotics <- count(phoible_data$Phoneme[phoible_data$is_rhotic==TRUE]) # What rhotics are in phoible and how frequent they are
+row.names(ph_rhotics) <- ph_rhotics$x
+ph_rhotics <- ph_rhotics[order(ph_rhotics$freq),]
+
+# If you want to see in different areas, you have to work with the phoible w/ macroarea
+
+ph_rhotics_to_plot <- subset(ph_rhotics, freq>=5)
+cairo_pdf(filename = "phoible_rhotics.pdf",  height=35/148*nrow(ph_rhotics_to_plot), onefile = FALSE)
+p <- ggplot(ph_rhotics_to_plot, aes(x=reorder(x, freq), y=freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) + 
+  ylim(0, 11.5*floor(max(ph_rhotics_to_plot$freq)/10)) +
+  coord_flip() + 
+  # ggtitle(paste(toString(nrow(ph_rhotics_to_plot)),'most frequent rhotic segments in PHOIBLE')) + 
+  xlab("Segment") + ylab("Frequency")+
+  geom_text(aes(label=paste(freq," (",round(freq/ph_lang_sum*100,digits = 1),"%)",sep = "")), vjust=0.5, hjust=-0.17, size=3)
+print(p)
+dev.off()
+p
+
+```
+
+## SegBo rhotics
+```{r}
+seg_is_rho_bool <- grepl(is_rho_regexp, segbo_data$BorrowedSound) # Find SegBo segments that ARE rhotic (and nothing else, but diacritics)
+seg_is_rho <- segbo_data[seg_is_rho_bool,]
+
+segbo_data$is_rhotic <- seg_is_rho_bool # Add rhotic column to phoible data
+
+
+seg_rho_counter <- count(segbo_data, c("InventoryID", "is_rhotic")) # Count rhotics and non-rhotics in doculects
+
+seg_lang_sum <- nrow(unique(subset(segbo_data,select=c(InventoryID)))) # Count number of SegBo doculects
+seg_lang_rho_count <- count(seg_rho_counter$freq[seg_rho_counter$is_rhotic]) #  Histogram of doculects by number of rhotic segments they have (only languages with rhotics) 
+seg_lang_rho_sum <- sum(seg_lang_rho_count$freq) # How many doculects have at least one rhotic
+seg_hist_rho <- rbind(data.frame(x = 0, freq = seg_lang_sum-seg_lang_rho_sum), seg_lang_rho_count) # Add number of doculects without rhotics
+seg_hist_rho$percent <- seg_hist_rho$freq/seg_lang_sum*100
+
+seg_rhotics <- count(segbo_data$BorrowedSound[segbo_data$is_rhotic==TRUE]) # What rhotics are in SegBo and how frequent they are
+row.names(seg_rhotics) <- seg_rhotics$x
+seg_rhotics <- seg_rhotics[order(-seg_rhotics$freq),]
+
+cairo_pdf(filename = "segbo_rhotics.pdf",  height=35/148*nrow(seg_rhotics), onefile = FALSE)
+p <- ggplot(seg_rhotics, aes(x=reorder(x, freq), y=freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) + 
+  ylim(0, 12*floor(max(seg_rhotics$freq)/10)) +
+  coord_flip() + 
+  xlab("Segment") + ylab("Frequency")+
+  geom_text(aes(label=paste(freq," (",round(freq/seg_lang_sum*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+```
+
+## Analysis of rhotic borrowing was done manually
+```{r}
+new_rho <- subset(segbo_data, is_rhotic & (Result != "other distributional change"))
+rho_borrowers <- unique(new_rho$BorrowingLanguageGlottocode)
+write_csv(new_rho,"new_rho.csv") # Export rhotic borrowings data
+
+new_rho_analysis <- read_csv("new_rho_analysis.csv") # Import manually analysed data
+```
+
+## Rhotic statistics
+```{r}
+table(new_rho_analysis[new_rho_analysis$to_analysis=='Yes',]$macroarea)/table(segbo_data$macroarea)[row.names(table(new_rho_analysis$macroarea))]*100 # Frequency of rhotic brrowing within each macroarea
+```
+
+## Rhotic donors plot
+```{r}
+rho_source <- new_rho_analysis[new_rho_analysis$to_analysis=='Yes',]$SourceLanguageGlottocode
+rho_source <- gsub('\\s+', '', rho_source)
+rho_source <- gsub('arab1395', 'stan1318', rho_source)
+rho_source <- gsub('macr1272', 'port1283', rho_source)
+rho_source <- gsub('nort3191', 'alge1239', rho_source)
+rho_source[is.na(rho_source)] <- "unknown"
+rho_source_table <- table(unlist(strsplit(as.character(rho_source), ",")))
+rho_source_table  <- rho_source_table[order(rho_source_table, decreasing=F)]
+
+rho_source_glt <- row.names(rho_source_table)
+rho_source_names <- list()
+for (lang in rho_source_glt) {
+  if (lang!="unknown") {
+    rho_source_names <- append(rho_source_names,languoids[match(lang,languoids$id),]$name)
+  }
+  else {
+    rho_source_names <- append(rho_source_names,"Unknown")
+  }
+}
+rho_source_names <- as.character(rho_source_names)
+rho_source_df <- data.frame("name" = rho_source_names, "Freq" = as.integer(rho_source_table))
+
+cairo_pdf(filename = paste("rho_donors.pdf",sep=""),  height=23/148*nrow(rho_source_df), onefile = FALSE)
+p <- ggplot(rho_source_df, aes(x=reorder(name,Freq), y=Freq)) + 
+  geom_bar(position = "dodge" ,stat="identity", width = 0.5) +
+  ylim(0, max(rho_source_df$Freq)*1.1) +
+  coord_flip() + 
+  # ggtitle("Rhotic donors") + 
+  xlab("Donor language") + ylab("Donated Segments")+
+  geom_text(aes(label=paste(Freq," (",round(Freq/sum(rho_source_table)*100,digits=1),"%)",sep="")), vjust=0.5, hjust=-0.1, size=3)
+print(p)
+dev.off()
+p
+```
+
