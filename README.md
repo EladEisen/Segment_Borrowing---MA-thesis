@@ -1,4 +1,4 @@
-# Segment_Borrowing---MA-thesis
+# Segment Borrowing - MA thesis
 This is the code for the statistics and analyses presented in my MA thesis about the typology of phonological segment borrowing.
 
 *Statistics_and_analyses.Rmd* is an R Notebook with the code for most statistics and analyses.
