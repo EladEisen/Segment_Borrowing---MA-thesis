@@ -7,8 +7,10 @@ This is the code for the statistics and analyses presented in my MA thesis about
 Notice that in order to run the code you need the SegBo data, which is not fully released yet.
 The current public release of SegBo can be accessed at: https://github.com/segbo-db/segbo
 
-My thesis can be accessed at: (TBU)
+My thesis can be accessed at: https://www.researchgate.net/publication/341734023_The_Typology_of_Phonological_Segment_Borrowing
 
 I can be contacted at: elad.eisen@mail.huji.ac.il
 
-Academia: https://huji.academia.edu/EladEisen
+Academia.Edu: https://huji.academia.edu/EladEisen
+Research.Gate: https://www.researchgate.net/profile/Elad_Eisen
+LinkedIn: https://www.linkedin.com/in/eladeisen
