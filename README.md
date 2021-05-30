@@ -13,6 +13,6 @@ I can be contacted at: elad.eisen@mail.huji.ac.il
 
 Academia.Edu: https://huji.academia.edu/EladEisen
 
-Research.Gate: https://www.researchgate.net/profile/Elad_Eisen
+ResearchGate: https://www.researchgate.net/profile/Elad_Eisen
 
 LinkedIn: https://www.linkedin.com/in/eladeisen
