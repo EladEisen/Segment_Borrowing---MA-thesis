@@ -11,7 +11,7 @@ My thesis can be accessed at: https://www.researchgate.net/publication/341734023
 
 I can be contacted at: elad.eisen@mail.huji.ac.il
 
-Academia.Edu: https://huji.academia.edu/EladEisen
+Academia.edu: https://huji.academia.edu/EladEisen
 
 ResearchGate: https://www.researchgate.net/profile/Elad_Eisen
 
