@@ -19,11 +19,11 @@ library(plyr)
 ##Prepare the data:
 
 ```{r}
-segbo_data <- read_csv("bsd_with_glottolog-with-features.csv", col_types = cols(BorrowedSound = col_character()))
+segbo_data <- read_csv("data/bsd_with_glottolog-with-features.csv", col_types = cols(BorrowedSound = col_character()))
 seg_table <- table(segbo_data$BorrowedSound)
 seg_table  <- seg_table[order(seg_table, decreasing=F)]
 df <- as.data.frame(seg_table)
-languoids <- read_csv("languoid.csv")
+languoids <- read_csv("data/languoid.csv")
 
 # Download Glottolog 4.0 (22.10.2019) geo data
 glottolog_data <- read_csv("https://cdstar.shh.mpg.de/bitstreams/EAEA0-5787-1678-EBFE-0/languages_and_dialects_geo.csv")
@@ -874,9 +874,9 @@ p
 ```{r}
 new_rho <- subset(segbo_data, is_rhotic & (Result != "other distributional change"))
 rho_borrowers <- unique(new_rho$BorrowingLanguageGlottocode)
-write_csv(new_rho,"new_rho.csv") # Export rhotic borrowings data
+write_csv(new_rho,"data/new_rho.csv") # Export rhotic borrowings data
 
-new_rho_analysis <- read_csv("new_rho_analysis.csv") # Import manually analysed data
+new_rho_analysis <- read_csv("data/new_rho_analysis.csv") # Import manually analysed data
 ```
 
 ## Rhotic statistics
